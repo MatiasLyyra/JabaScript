@@ -40,21 +40,21 @@ func (c ContextValue) String() string {
 }
 
 type Context struct {
-	vars       map[string]ContextValue
+	Vars       map[string]ContextValue
 	stackCount int
 }
 
 func (c *Context) merge(vars map[string]ContextValue) {
 	for key, val := range vars {
-		if _, ok := c.vars[key]; !ok {
-			c.vars[key] = val
+		if _, ok := c.Vars[key]; !ok {
+			c.Vars[key] = val
 		}
 	}
 }
 
 func NewContext() *Context {
 	ctx := &Context{
-		vars: make(map[string]ContextValue),
+		Vars: make(map[string]ContextValue),
 	}
 	return ctx
 }
@@ -69,7 +69,7 @@ type FnDefExpression struct {
 }
 
 func (exp FnDefExpression) String() string {
-	return fmt.Sprintf("(%s (%s))", strings.Join(exp.arguments, ","), exp.body)
+	return fmt.Sprintf("(fn |%s| (%s))", strings.Join(exp.arguments, ","), exp.body)
 }
 
 func (exp FnDefExpression) Eval(ctx *Context) (ContextValue, error) {
@@ -79,6 +79,14 @@ func (exp FnDefExpression) Eval(ctx *Context) (ContextValue, error) {
 type FnCallExpression struct {
 	arguments []Expression
 	fn        Expression
+}
+
+func (exp FnCallExpression) String() string {
+	args := make([]string, 0, len(exp.arguments))
+	for _, arg := range exp.arguments {
+		args = append(args, fmt.Sprint(arg))
+	}
+	return fmt.Sprintf("(fn call %s (%s))", strings.Join(args, " "), exp.fn)
 }
 
 func (exp FnCallExpression) Eval(ctx *Context) (ContextValue, error) {
@@ -115,21 +123,21 @@ func (exp FnCallExpression) Eval(ctx *Context) (ContextValue, error) {
 		}
 		vars[fn.arguments[i]] = argVal
 	}
-	oldVars := ctx.vars
-	ctx.vars = vars
+	oldVars := ctx.Vars
+	ctx.Vars = vars
 	ctx.merge(oldVars)
 	fnVal, err := fn.body.Eval(ctx)
 	if fnVal.Type == Function {
 		closureFn := fnVal.Val.(FnDefExpression)
 		fnVal = ContextValue{
 			Val: ClosureContext{
-				vars: ctx.vars,
+				vars: ctx.Vars,
 				fn:   &closureFn,
 			},
 			Type: Closure,
 		}
 	}
-	ctx.vars = oldVars
+	ctx.Vars = oldVars
 	ctx.stackCount--
 	return fnVal, err
 }
@@ -148,7 +156,7 @@ func (exp AssignmentExpression) Eval(ctx *Context) (ContextValue, error) {
 	if err != nil {
 		return ContextValue{}, err
 	}
-	ctx.vars[exp.id] = val
+	ctx.Vars[exp.id] = val
 	return val, nil
 }
 
@@ -156,6 +164,10 @@ type TernaryExpression struct {
 	tExp Expression
 	fExp Expression
 	cond Expression
+}
+
+func (exp TernaryExpression) String() string {
+	return fmt.Sprintf("(? %s %s %s)", exp.cond, exp.tExp, exp.fExp)
 }
 
 func (exp TernaryExpression) Eval(ctx *Context) (ContextValue, error) {
@@ -259,7 +271,7 @@ func (i IntegerExpression) String() string {
 type IdentifierExpression string
 
 func (exp IdentifierExpression) Eval(ctx *Context) (ContextValue, error) {
-	if val, ok := ctx.vars[string(exp)]; ok {
+	if val, ok := ctx.Vars[string(exp)]; ok {
 		return val, nil
 	}
 	return ContextValue{}, fmt.Errorf("variable \"%s\" not defined", exp)

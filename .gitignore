@@ -1,3 +1,4 @@
 JabaScript.code-workspace
-/JabaScript.exe
+*.exe
 /JabaScript
+*.wasm

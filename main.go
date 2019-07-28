@@ -10,13 +10,13 @@ import (
 	"github.com/MatiasLyyra/JabaScript/parser"
 )
 
-var ctx = parser.NewContext()
+var ctx *parser.Context
 var debug bool
 
 // TODO: Fix - <unary>
 func main() {
 	r := bufio.NewReader(os.Stdin)
-	fmt.Println("JabaScript ver 0.4.0 Author: Matias Lyyra")
+	fmt.Println("JabaScript ver 0.4.1 Author: Matias Lyyra")
 	fmt.Println("Type help for info")
 	for {
 		fmt.Print("> ")
@@ -31,6 +31,8 @@ func main() {
 			os.Exit(0)
 		case "debug\n":
 			debug = !debug
+		case "vars\n":
+			printVars()
 		case "help\n":
 			fmt.Println(
 				`Documentation:
@@ -50,12 +52,24 @@ Commands:
 		case "\n":
 			continue
 		default:
-			execute(code)
+			execute(code, false)
 		}
 	}
 }
 
-func execute(code string) {
+func init() {
+	ctx = parser.NewContext()
+	execute("rand = |seed x| || x = (1664525 * x + 1013904223) % 4294967296\n", true)
+	execute("fibbonacci = |n| n - 1 ? n ? fibbonacci(n - 1) + fibbonacci(n - 2) : 0 : 1\n", true)
+}
+
+func printVars() {
+	for id, val := range ctx.Vars {
+		fmt.Printf("%s: %s\n", id, val.Val)
+	}
+}
+
+func execute(code string, silent bool) {
 	tokens, err := lex.Tokenize(bytes.NewBufferString(code))
 	if err != nil {
 		fmt.Printf("ERROR: %s\n", err)
@@ -77,5 +91,8 @@ func execute(code string) {
 		fmt.Printf("ERROR: %s\n", err)
 		return
 	}
-	fmt.Println(val)
+	if !silent || debug {
+		fmt.Println(val)
+
+	}
 }
