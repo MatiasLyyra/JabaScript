@@ -82,7 +82,7 @@ func (p *parser) addExpression() (Expression, error) {
 	return tree, nil
 }
 func (p *parser) mulExpression() (Expression, error) {
-	tree, err := p.unary()
+	tree, err := p.function()
 	if err != nil {
 		return nil, err
 	}
@@ -94,19 +94,12 @@ func (p *parser) mulExpression() (Expression, error) {
 		if p.isWhiteSpace() {
 			return nil, fmt.Errorf("unexpected \\n or EOF, expected expression")
 		}
-		rExp, err := p.unary()
+		rExp, err := p.function()
 		if err != nil {
 			return nil, err
 		}
 		exp.rExp = rExp
 		tree = exp
-	}
-	if p.accept(token.LParen) {
-		fnCall, err := p.function(tree)
-		if err != nil {
-			return nil, err
-		}
-		tree = fnCall
 	}
 	return tree, nil
 }
@@ -122,15 +115,7 @@ func (p *parser) unary() (Expression, error) {
 		uExp.val = IntegerExpression(val)
 	} else if p.accept(token.Identifier) {
 		idName := p.consume().Content
-		if p.accept(token.LParen) {
-			fnCallExp, err := p.function(IdentifierExpression(idName))
-			if err != nil {
-				return nil, err
-			}
-			uExp.val = fnCallExp
-		} else {
-			uExp.val = IdentifierExpression(idName)
-		}
+		uExp.val = IdentifierExpression(idName)
 	} else if p.accept(token.LParen) {
 		p.consume()
 		val, err := p.assignmentExpression()
@@ -165,28 +150,36 @@ func (p *parser) unary() (Expression, error) {
 	}
 	return uExp, nil
 }
-func (p *parser) function(fn Expression) (Expression, error) {
-	// Consume the LParen
-	p.consume()
-	fnCallExp := FnCallExpression{
-		fn:        fn,
-		arguments: make([]Expression, 0),
-	}
-	for !p.accept(token.RParen) {
-		if p.isWhiteSpace() {
-			break
-		}
-		arg, err := p.addExpression()
-		if err != nil {
-			return nil, err
-		}
-		fnCallExp.arguments = append(fnCallExp.arguments, arg)
-	}
-	err := p.require(token.RParen)
+func (p *parser) function() (Expression, error) {
+	fn, err := p.unary()
 	if err != nil {
 		return nil, err
 	}
-	return fnCallExp, nil
+
+	for p.accept(token.LParen) {
+		fnCallExp := FnCallExpression{
+			fn:        fn,
+			arguments: make([]Expression, 0),
+		}
+		p.consume()
+		for !p.accept(token.RParen) {
+			if p.isWhiteSpace() {
+				break
+			}
+			arg, err := p.addExpression()
+			if err != nil {
+				return nil, err
+			}
+			fnCallExp.arguments = append(fnCallExp.arguments, arg)
+			fn = fnCallExp
+		}
+		err := p.require(token.RParen)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return fn, nil
 }
 func (p *parser) program() (Expression, error) {
 	val, err := p.assignmentExpression()

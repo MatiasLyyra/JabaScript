@@ -10,6 +10,7 @@ type Type int
 const (
 	Integer Type = iota
 	Function
+	Closure
 )
 const maxStackSize = 500
 
@@ -19,11 +20,18 @@ type ContextValue struct {
 	Type Type
 }
 
+type ClosureContext struct {
+	vars map[string]ContextValue
+	fn   *FnDefExpression
+}
+
 func (c ContextValue) String() string {
 	switch c.Type {
 	case Integer:
 		return strconv.Itoa(c.Val.(int))
 	case Function:
+		return "[Function]"
+	case Closure:
 		return "[Function]"
 	default:
 		return fmt.Sprintf("Unknown val: (%d %s)", c.Type, c.Val)
@@ -33,6 +41,14 @@ func (c ContextValue) String() string {
 type Context struct {
 	vars       map[string]ContextValue
 	stackCount int
+}
+
+func (c *Context) merge(vars map[string]ContextValue) {
+	for key, val := range vars {
+		if _, ok := c.vars[key]; !ok {
+			c.vars[key] = val
+		}
+	}
 }
 
 func NewContext() *Context {
@@ -65,10 +81,19 @@ func (exp FnCallExpression) Eval(ctx *Context) (ContextValue, error) {
 	if err != nil {
 		return ContextValue{}, err
 	}
-	if fnCtx.Type != Function {
+	if fnCtx.Type != Function && fnCtx.Type != Closure {
 		return ContextValue{}, fmt.Errorf("expression does not evaluate to a function")
 	}
-	fn := fnCtx.Val.(FnDefExpression)
+	vars := make(map[string]ContextValue)
+	var fn *FnDefExpression
+	if fnCtx.Type == Function {
+		fnVal := fnCtx.Val.(FnDefExpression)
+		fn = &fnVal
+	} else {
+		closure := fnCtx.Val.(ClosureContext)
+		fn = closure.fn
+		vars = closure.vars
+	}
 
 	if len(fn.arguments) != len(exp.arguments) {
 		return ContextValue{}, fmt.Errorf("incorrent amount of arguments for \"%s\", expected %d got %d", exp.fn, len(fn.arguments), len(exp.arguments))
@@ -78,7 +103,6 @@ func (exp FnCallExpression) Eval(ctx *Context) (ContextValue, error) {
 		ctx.stackCount = 0
 		return ContextValue{}, fmt.Errorf("max stack size %d exceeded", maxStackSize)
 	}
-	vars := make(map[string]ContextValue)
 	for i := 0; i < len(exp.arguments); i++ {
 		argVal, err := exp.arguments[i].Eval(ctx)
 		if err != nil {
@@ -88,7 +112,18 @@ func (exp FnCallExpression) Eval(ctx *Context) (ContextValue, error) {
 	}
 	oldVars := ctx.vars
 	ctx.vars = vars
+	ctx.merge(oldVars)
 	fnVal, err := fn.body.Eval(ctx)
+	if fnVal.Type == Function {
+		closureFn := fnVal.Val.(FnDefExpression)
+		fnVal = ContextValue{
+			Val: ClosureContext{
+				vars: ctx.vars,
+				fn:   &closureFn,
+			},
+			Type: Closure,
+		}
+	}
 	ctx.vars = oldVars
 	ctx.stackCount--
 	return fnVal, err
