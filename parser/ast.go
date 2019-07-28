@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type Type int
@@ -65,6 +66,10 @@ type Expression interface {
 type FnDefExpression struct {
 	arguments []string
 	body      Expression
+}
+
+func (exp FnDefExpression) String() string {
+	return fmt.Sprintf("(%s (%s))", strings.Join(exp.arguments, ","), exp.body)
 }
 
 func (exp FnDefExpression) Eval(ctx *Context) (ContextValue, error) {
@@ -145,6 +150,28 @@ func (exp AssignmentExpression) Eval(ctx *Context) (ContextValue, error) {
 	}
 	ctx.vars[exp.id] = val
 	return val, nil
+}
+
+type TernaryExpression struct {
+	tExp Expression
+	fExp Expression
+	cond Expression
+}
+
+func (exp TernaryExpression) Eval(ctx *Context) (ContextValue, error) {
+	valCtx, err := exp.cond.Eval(ctx)
+	if err != nil {
+		return ContextValue{}, err
+	}
+	if valCtx.Type != Integer {
+		return ContextValue{}, fmt.Errorf("cannot evaluate condition on non integer value")
+	}
+	val := valCtx.Val.(int)
+
+	if val != 0 {
+		return exp.tExp.Eval(ctx)
+	}
+	return exp.fExp.Eval(ctx)
 }
 
 type BinaryExpression struct {

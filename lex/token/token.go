@@ -25,8 +25,9 @@ const (
 	Integer
 	Identifier
 	Assignment
-	FnOperator
 	NewLine
+	TernaryStart
+	TernarySep
 	EOF
 	Invalid
 )
@@ -43,14 +44,16 @@ func (k Kind) String() (s string) {
 		s = "%"
 	case Assignment:
 		s = "="
-	case FnOperator:
-		s = "=>"
 	case Pipe:
 		s = "|"
 	case Identifier:
 		s = "Id"
 	case Integer:
 		s = "int"
+	case TernaryStart:
+		s = "?"
+	case TernarySep:
+		s = ":"
 	case EOF:
 		s = "EOF"
 	case NewLine:

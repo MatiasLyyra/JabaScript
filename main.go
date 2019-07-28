@@ -15,9 +15,8 @@ var debug bool
 
 // TODO: Fix - <unary>
 func main() {
-	// buf := bytes.NewBufferString("first = |a| |b| a\nfirst(1)(2)\nexit\n")
 	r := bufio.NewReader(os.Stdin)
-	fmt.Println("JabaScript ver 0.3.0 Author: Matias Lyyra")
+	fmt.Println("JabaScript ver 0.4.0 Author: Matias Lyyra")
 	fmt.Println("Type help for info")
 	for {
 		fmt.Print("> ")

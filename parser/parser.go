@@ -46,6 +46,34 @@ func (p *parser) isWhiteSpace() bool {
 	return p.accept(token.EOF) || p.accept(token.NewLine)
 }
 
+func (p *parser) ternaryExpression() (Expression, error) {
+	cond, err := p.assignmentExpression()
+	if err != nil {
+		return nil, err
+	}
+	for p.accept(token.TernaryStart) {
+		p.consume()
+		trueExp, err := p.ternaryExpression()
+		if err != nil {
+			return nil, err
+		}
+		err = p.require(token.TernarySep)
+		if err != nil {
+			return nil, err
+		}
+		falseExp, err := p.ternaryExpression()
+		if err != nil {
+			return nil, err
+		}
+		cond = TernaryExpression{
+			cond: cond,
+			tExp: trueExp,
+			fExp: falseExp,
+		}
+	}
+	return cond, nil
+}
+
 func (p *parser) assignmentExpression() (Expression, error) {
 	if p.accept(token.Identifier) && p.peekAt(1).Kind == token.Assignment {
 		exp := AssignmentExpression{id: p.consume().Content}
@@ -118,7 +146,7 @@ func (p *parser) unary() (Expression, error) {
 		uExp.val = IdentifierExpression(idName)
 	} else if p.accept(token.LParen) {
 		p.consume()
-		val, err := p.assignmentExpression()
+		val, err := p.ternaryExpression()
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +167,7 @@ func (p *parser) unary() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		body, err := p.assignmentExpression()
+		body, err := p.ternaryExpression()
 		if err != nil {
 			return nil, err
 		}
@@ -166,23 +194,23 @@ func (p *parser) function() (Expression, error) {
 			if p.isWhiteSpace() {
 				break
 			}
-			arg, err := p.addExpression()
+			arg, err := p.ternaryExpression()
 			if err != nil {
 				return nil, err
 			}
 			fnCallExp.arguments = append(fnCallExp.arguments, arg)
-			fn = fnCallExp
 		}
 		err := p.require(token.RParen)
 		if err != nil {
 			return nil, err
 		}
+		fn = fnCallExp
 	}
 
 	return fn, nil
 }
 func (p *parser) program() (Expression, error) {
-	val, err := p.assignmentExpression()
+	val, err := p.ternaryExpression()
 	if err != nil {
 		return nil, err
 	}

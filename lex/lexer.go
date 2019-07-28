@@ -17,7 +17,7 @@ type lexer struct {
 }
 
 func (lex *lexer) skipWhiteSpace() {
-	for lex.current == ' ' {
+	for unicode.IsSpace(lex.current) && lex.current != '\n' {
 		lex.advance(false)
 	}
 }
@@ -49,6 +49,8 @@ func (lex *lexer) isOperator() bool {
 		lex.current == '=' ||
 		lex.current == '(' ||
 		lex.current == ')' ||
+		lex.current == '?' ||
+		lex.current == ':' ||
 		lex.current == '|'
 }
 func (lex *lexer) scanDigit() token.Token {
@@ -90,15 +92,14 @@ func (lex *lexer) scanOperator() token.Token {
 		kind = token.Pipe
 	case '/':
 		kind = token.Div
+	case '?':
+		kind = token.TernaryStart
+	case ':':
+		kind = token.TernarySep
 	case '%':
 		kind = token.Mod
 	case '=':
-		if lex.current == '>' {
-			lex.advance(true)
-			kind = token.FnOperator
-		} else {
-			kind = token.Assignment
-		}
+		kind = token.Assignment
 	}
 	lex.advance(true)
 	return lex.makeToken(kind)
