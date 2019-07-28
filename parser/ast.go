@@ -57,39 +57,41 @@ func (exp FnDefExpression) Eval(ctx *Context) (ContextValue, error) {
 
 type FnCallExpression struct {
 	arguments []Expression
-	fn        string
+	fn        Expression
 }
 
 func (exp FnCallExpression) Eval(ctx *Context) (ContextValue, error) {
-	if fnCtx, ok := ctx.vars[exp.fn]; ok {
-		if fnCtx.Type != Function {
-			return ContextValue{}, fmt.Errorf("variable \"%s\" is not a function", exp.fn)
-		}
-		fn := fnCtx.Val.(FnDefExpression)
-		if len(fn.arguments) != len(exp.arguments) {
-			return ContextValue{}, fmt.Errorf("incorrent amount of arguments for \"%s\", expected %d got %d", exp.fn, len(fn.arguments), len(exp.arguments))
-		}
-		ctx.stackCount++
-		if ctx.stackCount > maxStackSize {
-			ctx.stackCount = 0
-			return ContextValue{}, fmt.Errorf("max stack size %d exceeded", maxStackSize)
-		}
-		vars := make(map[string]ContextValue)
-		for i := 0; i < len(exp.arguments); i++ {
-			argVal, err := exp.arguments[i].Eval(ctx)
-			if err != nil {
-				return ContextValue{}, err
-			}
-			vars[fn.arguments[i]] = argVal
-		}
-		oldVars := ctx.vars
-		ctx.vars = vars
-		fnVal, err := fn.body.Eval(ctx)
-		ctx.vars = oldVars
-		ctx.stackCount--
-		return fnVal, err
+	fnCtx, err := exp.fn.Eval(ctx)
+	if err != nil {
+		return ContextValue{}, err
 	}
-	return ContextValue{}, fmt.Errorf("function \"%s\" does not exist", exp.fn)
+	if fnCtx.Type != Function {
+		return ContextValue{}, fmt.Errorf("expression does not evaluate to a function")
+	}
+	fn := fnCtx.Val.(FnDefExpression)
+
+	if len(fn.arguments) != len(exp.arguments) {
+		return ContextValue{}, fmt.Errorf("incorrent amount of arguments for \"%s\", expected %d got %d", exp.fn, len(fn.arguments), len(exp.arguments))
+	}
+	ctx.stackCount++
+	if ctx.stackCount > maxStackSize {
+		ctx.stackCount = 0
+		return ContextValue{}, fmt.Errorf("max stack size %d exceeded", maxStackSize)
+	}
+	vars := make(map[string]ContextValue)
+	for i := 0; i < len(exp.arguments); i++ {
+		argVal, err := exp.arguments[i].Eval(ctx)
+		if err != nil {
+			return ContextValue{}, err
+		}
+		vars[fn.arguments[i]] = argVal
+	}
+	oldVars := ctx.vars
+	ctx.vars = vars
+	fnVal, err := fn.body.Eval(ctx)
+	ctx.vars = oldVars
+	ctx.stackCount--
+	return fnVal, err
 }
 
 type AssignmentExpression struct {
