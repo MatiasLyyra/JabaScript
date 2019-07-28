@@ -146,6 +146,9 @@ func (exp BinaryExpression) Eval(ctx *Context) (ContextValue, error) {
 	case "*":
 		val = lVal * rVal
 	case "/":
+		if rVal == 0 {
+			return ContextValue{}, fmt.Errorf("division by zero")
+		}
 		val = lVal / rVal
 	case "+":
 		val = lVal + rVal
